@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -43,9 +44,11 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _isFetching = false;
   Map<String, dynamic> _searchResults = {};
   late Position position;
+  StreamSubscription<Position>? _positionStreamSubscription;
 
   @override
   void initState() {
+    _initializeLocationUpdates();
     _determinePosition();
     super.initState();
     _searchController.addListener(() {
@@ -61,6 +64,12 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _positionStreamSubscription?.cancel();
+    super.dispose();
   }
 
   // get the current location
@@ -94,8 +103,27 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     // Permisstions are granted, get location
-    position = await Geolocator.getCurrentPosition();
+    position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
     return position;
+  }
+
+  void _initializeLocationUpdates() {
+    Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter:
+          1, // Minimum distance (in meters) before an update is triggered.
+    )).listen((Position position) {
+      setState(() {
+        this.position = position;
+      });
+      // Fetch new search results whenever the position changes
+      if (_hasText) {
+        _fetchSearchResults(_searchController.text);
+      }
+    });
   }
 
   // get locations suggestions
