@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 void main() async {
   await dotenv.load(fileName: '.env');
@@ -38,7 +39,6 @@ class _MyHomePageState extends State<MyHomePage> {
   final TextEditingController _searchController = TextEditingController();
   final String _apiKey = dotenv.env['API_KEY']!;
   final String _autoSuggestUrl = dotenv.env['AUTOSUGGEST_URL']!;
-  // final String _googlemapUrl = dotenv.env['GOOGLE_URL']!;
   bool _hasText = false;
   bool _isFetching = false;
   Map<String, dynamic> _searchResults = {};
@@ -61,9 +61,9 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
     });
-    print('sth');
   }
 
+  // get the current location
   Future<Position> _determinePosition() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -98,9 +98,8 @@ class _MyHomePageState extends State<MyHomePage> {
     return position;
   }
 
+  // get locations suggestions
   void _fetchSearchResults(String searchResult) async {
-    print(position.latitude);
-    print(position.longitude);
     setState(() {
       _isFetching = true;
     });
@@ -128,7 +127,14 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void _openGoogleMap(double lat, double long) {}
+  // open google map
+  Future<void> _openGoogleMap(double lat, double long) async {
+    String googleUrl =
+        "https://www.google.com/maps/search/?api=1&query=$lat, $long";
+    await canLaunchUrlString(googleUrl)
+        ? await launchUrlString(googleUrl)
+        : throw 'Could not launch $googleUrl';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -240,8 +246,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                         )
                                       : IconButton(
                                           onPressed: () {
-                                            _openGoogleMap(position.latitude,
-                                                position.longitude);
+                                            _openGoogleMap(
+                                                _searchResults['items'][index]
+                                                    ['position']['lat'],
+                                                _searchResults['items'][index]
+                                                    ['position']['lng']);
                                           },
                                           icon: const Icon(Icons.directions),
                                         ),
