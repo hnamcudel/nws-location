@@ -111,7 +111,10 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       );
       if (response.statusCode == 200) {
-        _searchResults = json.decode(response.body);
+        final decodedResponse = utf8.decode(response.bodyBytes);
+        setState(() {
+          _searchResults = json.decode(decodedResponse);
+        });
       } else {
         throw Exception('Unknown Error has occured!');
       }
