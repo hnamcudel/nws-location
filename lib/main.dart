@@ -61,6 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
     });
+    print('sth');
   }
 
   Future<Position> _determinePosition() async {
