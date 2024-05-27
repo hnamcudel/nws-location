@@ -55,7 +55,6 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {
         _hasText = _searchController.text.isNotEmpty;
       });
-      // Simulate fetching search results
       if (_hasText) {
         _fetchSearchResults(_searchController.text);
       } else {
@@ -86,12 +85,8 @@ class _MyHomePageState extends State<MyHomePage> {
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+      // request permission after first denied
       if (permission == LocationPermission.denied) {
-        // Permissions are denied, next time you could try
-        // requesting permissions again (this is also where
-        // Android's shouldShowRequestPermissionRationale
-        // returned true. According to Android guidelines
-        // your App should show an explanatory UI now.
         return Future.error('Location permissions are denied');
       }
     }
@@ -114,7 +109,7 @@ class _MyHomePageState extends State<MyHomePage> {
         locationSettings: const LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter:
-          1, // Minimum distance (in meters) before an update is triggered.
+          10, // Minimum distance (in meters) before an update is triggered.
     )).listen((Position position) {
       setState(() {
         this.position = position;
@@ -165,6 +160,37 @@ class _MyHomePageState extends State<MyHomePage> {
     await canLaunchUrlString(googleUrl)
         ? await launchUrlString(googleUrl)
         : throw 'Could not launch $googleUrl';
+  }
+
+  TextSpan _highlightText(String resultText, String searchText) {
+    // return result text
+    if (searchText.isEmpty) {
+      return TextSpan(text: resultText);
+    }
+    final matches = resultText.toLowerCase().split(searchText.toLowerCase());
+    // means searchtext is not found in 'resultText'
+    if (matches.length <= 1) {
+      return TextSpan(
+          text: resultText, style: const TextStyle(color: Colors.black));
+    }
+    List<TextSpan> spans = [];
+    int start = 0;
+    for (int i = 0; i < matches.length; i++) {
+      if (matches[i].isNotEmpty) {
+        spans.add(TextSpan(
+            text: resultText.substring(start, start + matches[i].length)));
+        start += matches[i].length;
+      }
+      if (i < matches.length - 1) {
+        spans.add(TextSpan(
+          text: resultText.substring(start, start + searchText.length),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ));
+        start += searchText.length;
+      }
+    }
+    return TextSpan(
+        children: spans, style: const TextStyle(color: Colors.black));
   }
 
   @override
@@ -244,6 +270,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     ? ListView.builder(
                         itemCount: _searchResults['items'].length,
                         itemBuilder: (context, index) {
+                          final title = _searchResults['items'][index]['title'];
+                          final address =
+                              _searchResults['items'][index]['address'] != null
+                                  ? _searchResults['items'][index]['address']
+                                      ['label']
+                                  : null;
                           return GestureDetector(
                             child: Container(
                               padding:
@@ -257,34 +289,27 @@ class _MyHomePageState extends State<MyHomePage> {
                                       Icons.place_outlined,
                                     ),
                                   ),
-                                  _searchResults['items'][index]['address'] ==
-                                          null
-                                      ? Expanded(
-                                          child: Text(
-                                            '${_searchResults['items'][index]['title']}',
+                                  Expanded(
+                                    child: address == null
+                                        ? RichText(
+                                            text: _highlightText(
+                                                title, _searchController.text),
+                                          )
+                                        : RichText(
+                                            text: _highlightText(address,
+                                                _searchController.text),
                                           ),
-                                        )
-                                      : Expanded(
-                                          child: Text(
-                                            '${_searchResults['items'][index]['address']['label']}',
-                                          ),
-                                        ),
-                                  _searchResults['items'][index]['address'] ==
-                                          null
-                                      ? const Padding(
-                                          padding: EdgeInsets.only(right: 10.0),
-                                          child: Icon(Icons.directions),
-                                        )
-                                      : IconButton(
-                                          onPressed: () {
-                                            _openGoogleMap(
-                                                _searchResults['items'][index]
-                                                    ['position']['lat'],
-                                                _searchResults['items'][index]
-                                                    ['position']['lng']);
-                                          },
-                                          icon: const Icon(Icons.directions),
-                                        ),
+                                  ),
+                                  IconButton(
+                                    onPressed: () {
+                                      _openGoogleMap(
+                                          _searchResults['items'][index]
+                                              ['position']['lat'],
+                                          _searchResults['items'][index]
+                                              ['position']['lng']);
+                                    },
+                                    icon: const Icon(Icons.directions),
+                                  ),
                                 ],
                               ),
                             ),
